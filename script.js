@@ -2,6 +2,7 @@
 
 /* ===== Configuración ===== */
 const API_URL = 'https://rickandmortyapi.com/api/character';
+const SEARCH_DELAY = 400; // ms de espera (debounce) al escribir en el buscador
 
 // Imagen de respaldo (SVG embebido) por si falla la imagen original
 const FALLBACK_IMAGE =
@@ -36,8 +37,10 @@ const state = {
   page: 1,
   totalPages: 1,
   loading: false,
-  requestId: 0,        // evita que una respuesta vieja pise a una más reciente
-  filters: {           // se usarán más adelante para búsqueda y filtros
+  requestId: 0,          // identifica la petición más reciente
+  controller: null,      // AbortController de la petición en curso
+  searchTimer: null,     // temporizador del debounce
+  filters: {             // filtros ya aplicados (los que se envían a la API)
     name: '',
     status: '',
     species: '',
@@ -52,7 +55,12 @@ const els = {
   prevPage: document.getElementById('prevPage'),
   nextPage: document.getElementById('nextPage'),
   pageInfo: document.getElementById('pageInfo'),
-  resultsTitle: document.getElementById('resultsTitle')
+  resultsTitle: document.getElementById('resultsTitle'),
+  searchInput: document.getElementById('searchInput'),
+  statusFilter: document.getElementById('statusFilter'),
+  speciesFilter: document.getElementById('speciesFilter'),
+  genderFilter: document.getElementById('genderFilter'),
+  clearFilters: document.getElementById('clearFilters')
 };
 
 /* ===== Utilidades ===== */
@@ -67,7 +75,7 @@ function displayText(value) {
   return value === 'unknown' ? 'Desconocido' : value;
 }
 
-// Construye la URL de la API con página y filtros activos
+// Construye la URL con página y solo los filtros que tengan valor
 function buildUrl(page) {
   const params = new URLSearchParams({ page });
   Object.entries(state.filters).forEach(([key, value]) => {
@@ -205,8 +213,8 @@ function updatePagination() {
 /* ===== Comunicación con la API ===== */
 
 // Pide una página a la API. Devuelve null si no hay resultados (404)
-async function fetchCharacters(page) {
-  const response = await fetch(buildUrl(page));
+async function fetchCharacters(page, signal) {
+  const response = await fetch(buildUrl(page), { signal });
 
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
@@ -214,8 +222,13 @@ async function fetchCharacters(page) {
   return response.json();
 }
 
-// Carga una página completa: pide datos, muestra estados y renderiza
+// Carga una página completa: cancela la petición anterior, pide datos y renderiza
 async function loadCharacters(page = 1) {
+  // Cancela la petición anterior si sigue en curso
+  if (state.controller) state.controller.abort();
+  const controller = new AbortController();
+  state.controller = controller;
+
   const currentRequest = ++state.requestId;
 
   state.page = page;
@@ -224,9 +237,9 @@ async function loadCharacters(page = 1) {
   showMessage('loading', 'Cargando personajes...');
 
   try {
-    const data = await fetchCharacters(page);
+    const data = await fetchCharacters(page, controller.signal);
 
-    // Ignora respuestas antiguas si ya se lanzó otra petición
+    // Seguridad extra: ignora respuestas que ya no son las más recientes
     if (currentRequest !== state.requestId) return;
 
     if (data === null) {
@@ -235,6 +248,8 @@ async function loadCharacters(page = 1) {
       handleSuccess(data);
     }
   } catch (error) {
+    // Una petición cancelada no es un error: ya hay otra en marcha
+    if (error.name === 'AbortError') return;
     if (currentRequest !== state.requestId) return;
     handleError(error);
   } finally {
@@ -269,18 +284,66 @@ function handleError(error) {
   );
 }
 
+/* ===== Búsqueda y filtros ===== */
+
+// Cancela el debounce pendiente (si lo hay)
+function cancelPendingSearch() {
+  clearTimeout(state.searchTimer);
+  state.searchTimer = null;
+}
+
+// Copia los valores actuales de los controles al estado
+function readFiltersFromControls() {
+  state.filters.name = els.searchInput.value.trim();
+  state.filters.status = els.statusFilter.value;
+  state.filters.species = els.speciesFilter.value;
+  state.filters.gender = els.genderFilter.value;
+}
+
+// Aplica búsqueda + filtros combinados y vuelve a la página 1
+function applyFilters() {
+  cancelPendingSearch();
+  readFiltersFromControls();
+  loadCharacters(1);
+}
+
+// Búsqueda con debounce: espera a que el usuario deje de escribir
+function handleSearchInput() {
+  cancelPendingSearch();
+  state.searchTimer = setTimeout(applyFilters, SEARCH_DELAY);
+}
+
+// Limpia buscador y filtros, y recarga la página 1
+function clearAllFilters() {
+  cancelPendingSearch();
+  els.searchInput.value = '';
+  els.statusFilter.value = '';
+  els.speciesFilter.value = '';
+  els.genderFilter.value = '';
+  readFiltersFromControls();
+  loadCharacters(1);
+}
+
 /* ===== Navegación entre páginas ===== */
 
 function goToPage(page) {
   if (state.loading || page < 1 || page > state.totalPages) return;
-  loadCharacters(page);
+  loadCharacters(page); // buildUrl conserva los filtros activos
   // Lleva al usuario al inicio de los resultados
   els.resultsTitle.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* ===== Eventos ===== */
+
 function bindEvents() {
   els.prevPage.addEventListener('click', () => goToPage(state.page - 1));
   els.nextPage.addEventListener('click', () => goToPage(state.page + 1));
+
+  els.searchInput.addEventListener('input', handleSearchInput);
+  els.statusFilter.addEventListener('change', applyFilters);
+  els.speciesFilter.addEventListener('change', applyFilters);
+  els.genderFilter.addEventListener('change', applyFilters);
+  els.clearFilters.addEventListener('click', clearAllFilters);
 }
 
 /* ===== Inicio ===== */
