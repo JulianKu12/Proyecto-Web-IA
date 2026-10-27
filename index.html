@@ -1,1 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rick and Morty Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
 
+  <!-- Encabezado -->
+  <header class="site-header">
+    <h1>Rick and Morty Explorer</h1>
+    <p class="subtitle">Explora personajes de todo el multiverso</p>
+  </header>
+
+  <main class="container">
+
+    <!-- Barra de controles -->
+    <section class="controls" aria-label="Búsqueda y filtros">
+      <input
+        type="search"
+        id="searchInput"
+        placeholder="Buscar personaje..."
+        aria-label="Buscar personaje por nombre"
+        autocomplete="off">
+
+      <select id="statusFilter" aria-label="Filtrar por estado">
+        <option value="">Todos</option>
+        <option value="Alive">Vivo</option>
+        <option value="Dead">Muerto</option>
+        <option value="unknown">Desconocido</option>
+      </select>
+
+      <select id="speciesFilter" aria-label="Filtrar por especie">
+        <option value="">Todas</option>
+        <option value="Human">Human</option>
+        <option value="Alien">Alien</option>
+        <option value="Humanoid">Humanoid</option>
+        <option value="Robot">Robot</option>
+        <option value="Animal">Animal</option>
+        <option value="Mythological Creature">Mythological Creature</option>
+        <option value="Cronenberg">Cronenberg</option>
+        <option value="Disease">Disease</option>
+        <option value="unknown">unknown</option>
+      </select>
+
+      <select id="genderFilter" aria-label="Filtrar por género">
+        <option value="">Todos</option>
+        <option value="Female">Femenino</option>
+        <option value="Male">Masculino</option>
+        <option value="Genderless">Sin género</option>
+        <option value="unknown">Desconocido</option>
+      </select>
+
+      <button type="button" id="clearFilters" class="btn">Limpiar filtros</button>
+    </section>
+
+    <!-- Mensajes: cargando, error, sin resultados -->
+    <div id="statusMessage" role="status" aria-live="polite"></div>
+
+    <!-- Resultados -->
+    <section class="results" aria-labelledby="resultsTitle">
+      <h2 id="resultsTitle" class="section-title">Personajes</h2>
+      <div id="charactersGrid" class="grid"></div>
+
+      <!-- Paginación -->
+      <nav class="pagination" aria-label="Paginación">
+        <button type="button" id="prevPage" class="btn">&larr; Anterior</button>
+        <span id="pageInfo">Página 1</span>
+        <button type="button" id="nextPage" class="btn">Siguiente &rarr;</button>
+      </nav>
+    </section>
+
+    <!-- Favoritos -->
+    <section class="favorites" aria-labelledby="favTitle">
+      <h2 id="favTitle" class="section-title">
+        Mis favoritos <span id="favCount" class="badge">0</span>
+      </h2>
+      <p id="favEmpty" class="message empty">Aún no tienes favoritos</p>
+      <div id="favoritesGrid" class="grid"></div>
+    </section>
+
+  </main>
+
+  <!-- Pie de página -->
+  <footer class="site-footer">
+    <p>Creado por [Tu nombre] &middot; Datos de rickandmortyapi.com</p>
+  </footer>
+
+  <!--
+    EJEMPLO DE TARJETA (la generará JavaScript, no va en el HTML real):
+
+    <article class="card">
+      <img class="card-img" src="https://rickandmortyapi.com/api/character/avatar/1.jpeg"
+           alt="Rick Sanchez" loading="lazy">
+      <div class="card-body">
+        <h3 class="card-name">Rick Sanchez</h3>
+        <p class="card-status">
+          <span class="status-dot status-alive"></span> Vivo - Human
+        </p>
+        <p class="card-info"><strong>Género:</strong> Masculino</p>
+        <p class="card-info"><strong>Origen:</strong> Earth (C-137)</p>
+        <p class="card-info"><strong>Ubicación:</strong> Citadel of Ricks</p>
+        <button type="button" class="fav-btn active" aria-label="Quitar de favoritos"
+                aria-pressed="true">&hearts;</button>
+      </div>
+    </article>
+  -->
+
+</body>
+</html>
