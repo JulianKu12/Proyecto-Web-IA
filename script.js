@@ -3,6 +3,7 @@
 /* ===== Configuración ===== */
 const API_URL = 'https://rickandmortyapi.com/api/character';
 const SEARCH_DELAY = 400; // ms de espera (debounce) al escribir en el buscador
+const FAVORITES_KEY = 'rm_favorites'; // clave de Local Storage
 
 // Imagen de respaldo (SVG embebido) por si falla la imagen original
 const FALLBACK_IMAGE =
@@ -13,6 +14,10 @@ const FALLBACK_IMAGE =
     '<text x="150" y="185" font-size="120" text-anchor="middle" fill="#a855f7" ' +
     'font-family="sans-serif">?</text></svg>'
   );
+
+// Corazones del botón de favoritos
+const HEART_FILLED = '\u2665'; // ♥
+const HEART_EMPTY = '\u2661';  // ♡
 
 /* ===== Traducciones al español ===== */
 const TRANSLATIONS = {
@@ -40,6 +45,8 @@ const state = {
   requestId: 0,          // identifica la petición más reciente
   controller: null,      // AbortController de la petición en curso
   searchTimer: null,     // temporizador del debounce
+  results: [],           // personajes de la página actual (para los favoritos)
+  favorites: [],         // favoritos guardados (datos mínimos)
   filters: {             // filtros ya aplicados (los que se envían a la API)
     name: '',
     status: '',
@@ -60,7 +67,10 @@ const els = {
   statusFilter: document.getElementById('statusFilter'),
   speciesFilter: document.getElementById('speciesFilter'),
   genderFilter: document.getElementById('genderFilter'),
-  clearFilters: document.getElementById('clearFilters')
+  clearFilters: document.getElementById('clearFilters'),
+  favCount: document.getElementById('favCount'),
+  favoritesGrid: document.getElementById('favoritesGrid'),
+  favEmpty: document.getElementById('favEmpty')
 };
 
 /* ===== Utilidades ===== */
@@ -82,6 +92,68 @@ function buildUrl(page) {
     if (value) params.set(key, value);
   });
   return `${API_URL}?${params.toString()}`;
+}
+
+/* ===== Favoritos: datos y Local Storage ===== */
+
+// Deja solo los datos mínimos que se guardan de cada personaje
+function pickFavoriteData(character) {
+  return {
+    id: character.id,
+    name: character.name,
+    image: character.image,
+    status: character.status,
+    species: character.species,
+    gender: character.gender
+  };
+}
+
+// Lee los favoritos guardados; si el contenido está dañado, devuelve []
+function loadFavorites() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY));
+    if (!Array.isArray(parsed)) return [];
+    // Conserva solo elementos válidos
+    return parsed.filter((item) => item && typeof item === 'object' && item.id != null);
+  } catch (error) {
+    console.warn('Favoritos dañados, se empieza con una lista vacía:', error);
+    return [];
+  }
+}
+
+// Guarda los favoritos (puede fallar si el almacenamiento está lleno o bloqueado)
+function saveFavorites() {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(state.favorites));
+  } catch (error) {
+    console.warn('No se pudieron guardar los favoritos:', error);
+  }
+}
+
+function isFavorite(id) {
+  return state.favorites.some((fav) => fav.id === Number(id));
+}
+
+// Agrega el personaje si no es favorito; si ya lo es, lo quita
+function toggleFavorite(character) {
+  if (isFavorite(character.id)) {
+    removeFavorite(character.id);
+  } else {
+    state.favorites.push(pickFavoriteData(character));
+    refreshFavorites();
+  }
+}
+
+function removeFavorite(id) {
+  state.favorites = state.favorites.filter((fav) => fav.id !== Number(id));
+  refreshFavorites();
+}
+
+// Guarda y actualiza toda la interfaz relacionada con favoritos
+function refreshFavorites() {
+  saveFavorites();
+  renderFavorites();
+  syncHearts();
 }
 
 /* ===== Mensajes de estado ===== */
@@ -155,15 +227,24 @@ function createStatusLine(character) {
   return p;
 }
 
-// Botón de favoritos (todavía sin funcionalidad)
+// Aplica el aspecto (activo o no) al botón de corazón
+function setFavButtonState(btn, name, active) {
+  btn.classList.toggle('active', active);
+  btn.setAttribute('aria-pressed', String(active));
+  btn.setAttribute(
+    'aria-label',
+    active ? `Quitar de favoritos a ${name}` : `Agregar a favoritos a ${name}`
+  );
+  btn.textContent = active ? HEART_FILLED : HEART_EMPTY;
+}
+
+// Botón de favoritos; nace activo si el personaje ya es favorito
 function createFavButton(character) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'fav-btn';
   btn.dataset.id = character.id;
-  btn.setAttribute('aria-label', `Agregar a favoritos a ${character.name}`);
-  btn.setAttribute('aria-pressed', 'false');
-  btn.textContent = '\u2665';
+  setFavButtonState(btn, character.name, isFavorite(character.id));
   return btn;
 }
 
@@ -190,6 +271,28 @@ function createCard(character) {
   return card;
 }
 
+// Tarjeta compacta para la sección de favoritos (sin origen ni ubicación)
+function createFavoriteCard(fav) {
+  const card = document.createElement('article');
+  card.className = 'card card-compact';
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const name = document.createElement('h3');
+  name.className = 'card-name';
+  name.textContent = fav.name;
+
+  body.appendChild(name);
+  body.appendChild(createStatusLine(fav));
+  body.appendChild(createInfoLine('Género', translate('gender', fav.gender)));
+  body.appendChild(createFavButton(fav)); // siempre activo: ya es favorito
+
+  card.appendChild(createCharacterImage(fav));
+  card.appendChild(body);
+  return card;
+}
+
 /* ===== Renderizado ===== */
 
 // Dibuja la lista de personajes dentro de #charactersGrid
@@ -201,6 +304,26 @@ function renderCharacters(list) {
 
 function clearGrid() {
   els.grid.replaceChildren();
+}
+
+// Dibuja la sección de favoritos, el contador y el mensaje de vacío
+function renderFavorites() {
+  const fragment = document.createDocumentFragment();
+  state.favorites.forEach((fav) => fragment.appendChild(createFavoriteCard(fav)));
+  els.favoritesGrid.replaceChildren(fragment);
+
+  els.favCount.textContent = state.favorites.length;
+  // Se usa style.display porque .message ya define display: flex
+  els.favEmpty.style.display = state.favorites.length ? 'none' : '';
+}
+
+// Actualiza los corazones de los resultados según los favoritos actuales
+function syncHearts() {
+  els.grid.querySelectorAll('.fav-btn').forEach((btn) => {
+    const card = btn.closest('.card');
+    const name = card.querySelector('.card-name').textContent;
+    setFavButtonState(btn, name, isFavorite(btn.dataset.id));
+  });
 }
 
 // Actualiza el texto y el estado de los botones de paginación
@@ -264,13 +387,15 @@ async function loadCharacters(page = 1) {
 
 function handleSuccess(data) {
   state.totalPages = data.info.pages;
-  renderCharacters(data.results);
+  state.results = data.results;
+  renderCharacters(data.results); // los favoritos salen con el corazón activo
   clearMessage();
 }
 
 function handleEmpty() {
   state.page = 1;
   state.totalPages = 1;
+  state.results = [];
   clearGrid();
   showMessage('empty', 'No se encontraron personajes con esos criterios.');
 }
@@ -335,6 +460,23 @@ function goToPage(page) {
 
 /* ===== Eventos ===== */
 
+// Delegación: clic en un corazón dentro de los resultados
+function handleGridClick(event) {
+  const btn = event.target.closest('.fav-btn');
+  if (!btn) return;
+
+  const character = state.results.find((c) => c.id === Number(btn.dataset.id));
+  if (character) toggleFavorite(character);
+}
+
+// Delegación: clic en un corazón dentro de la sección de favoritos
+function handleFavoritesClick(event) {
+  const btn = event.target.closest('.fav-btn');
+  if (!btn) return;
+
+  removeFavorite(btn.dataset.id);
+}
+
 function bindEvents() {
   els.prevPage.addEventListener('click', () => goToPage(state.page - 1));
   els.nextPage.addEventListener('click', () => goToPage(state.page + 1));
@@ -344,10 +486,16 @@ function bindEvents() {
   els.speciesFilter.addEventListener('change', applyFilters);
   els.genderFilter.addEventListener('change', applyFilters);
   els.clearFilters.addEventListener('click', clearAllFilters);
+
+  // Un solo listener por contenedor (delegación de eventos)
+  els.grid.addEventListener('click', handleGridClick);
+  els.favoritesGrid.addEventListener('click', handleFavoritesClick);
 }
 
 /* ===== Inicio ===== */
 function init() {
+  state.favorites = loadFavorites();
+  renderFavorites();
   bindEvents();
   loadCharacters(1);
 }
