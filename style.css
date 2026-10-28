@@ -135,9 +135,11 @@ select:focus-visible {
               background var(--transition), opacity var(--transition);
 }
 
-.btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 16px var(--glow);
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 16px var(--glow);
+  }
 }
 
 .btn:active:not(:disabled) { transform: translateY(0); }
@@ -210,11 +212,13 @@ select:focus-visible {
               border-color var(--transition), background var(--transition);
 }
 
-.card:hover {
-  transform: translateY(-6px);
-  background: var(--card-hover);
-  border-color: var(--accent-2);
-  box-shadow: 0 12px 28px var(--shadow), 0 0 22px var(--glow-2);
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-6px);
+    background: var(--card-hover);
+    border-color: var(--accent-2);
+    box-shadow: 0 12px 28px var(--shadow), 0 0 22px var(--glow-2);
+  }
 }
 
 .card-img {
@@ -333,6 +337,11 @@ select:focus-visible {
   background: var(--accent);
   border-radius: 999px;
 }
+
+/* Tarjetas compactas de favoritos */
+#favoritesGrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.card-compact .card-name { font-size: 0.9rem; }
+.card-compact .card-body { padding: 0.75rem; }
 
 /* ===== Pie de página ===== */
 .site-footer {
