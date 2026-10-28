@@ -7,6 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Aplica el tema guardado antes de pintar la página (evita parpadeo) -->
+  <script>
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem('rm_theme'); } catch (e) {}
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
@@ -14,6 +25,10 @@
 
   <!-- Encabezado -->
   <header class="site-header">
+    <button type="button" id="themeToggle" class="theme-toggle"
+            aria-label="Cambiar a modo claro" title="Cambiar a modo claro">
+      <span class="theme-icon" aria-hidden="true">&#9728;&#xFE0E;</span>
+    </button>
     <h1>Rick and Morty Explorer</h1>
     <p class="subtitle">Explora personajes de todo el multiverso</p>
   </header>
