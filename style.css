@@ -1,5 +1,6 @@
 /* ===== Variables de color (tema oscuro) ===== */
 :root {
+  color-scheme: dark; /* controles nativos (menús, scroll) en oscuro */
   --bg: #0b0d17;
   --bg-gradient: radial-gradient(circle at 20% 0%, #1a1038 0%, #0b0d17 55%);
   --surface: #131627;
@@ -19,12 +20,43 @@
   --unknown: #9aa0c3;
   --error: #ff5c7a;
   --fav: #ff4d8d;
+  --error-bg: rgba(255, 92, 122, 0.08);
+  --fav-glow: rgba(255, 77, 141, 0.5);
 
   --radius: 14px;
   --transition: 0.25s ease;
   --font-title: "Orbitron", sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 }
+
+/* ===== Variables del modo claro ===== */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef0f8;
+  --bg-gradient: radial-gradient(circle at 20% 0%, #e4dbff 0%, #eef0f8 55%);
+  --surface: #f8f9fe;
+  --card: #ffffff;
+  --card-hover: #f3efff;
+  --text: #1b1e33;
+  --text-muted: #5b617f;
+  --accent: #0b7a2e;
+  --accent-contrast: #ffffff;
+  --accent-2: #7e22ce;
+  --border: #b3b9d8;
+  --shadow: rgba(27, 30, 51, 0.12);
+  --glow: rgba(11, 122, 46, 0.25);
+  --glow-2: rgba(126, 34, 206, 0.2);
+  --alive: #15803d;
+  --dead: #dc2626;
+  --unknown: #6b7280;
+  --error: #c81e4a;
+  --error-bg: rgba(200, 30, 74, 0.08);
+  --fav: #d6246e;
+  --fav-glow: rgba(214, 36, 110, 0.35);
+}
+
+/* El brillo neón del título no se ve bien sobre fondo claro */
+:root[data-theme="light"] .site-header h1 { text-shadow: none; }
 
 /* ===== Reset básico ===== */
 *, *::before, *::after { box-sizing: border-box; }
@@ -49,7 +81,7 @@ img { max-width: 100%; display: block; }
 /* ===== Encabezado ===== */
 .site-header {
   text-align: center;
-  padding: 2.5rem 1rem 1.5rem;
+  padding: 1rem 1rem 1.5rem;
 }
 
 .site-header h1 {
@@ -64,6 +96,32 @@ img { max-width: 100%; display: block; }
 .subtitle {
   margin: 0.5rem 0 0;
   color: var(--text-muted);
+}
+
+/* ===== Botón de tema (claro/oscuro) ===== */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 0.75rem auto;   /* a la derecha, encima del título */
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition),
+              box-shadow var(--transition);
+}
+
+@media (hover: hover) {
+  .theme-toggle:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 14px var(--glow);
+    transform: rotate(15deg);
+  }
 }
 
 /* ===== Contenedor principal ===== */
@@ -171,7 +229,7 @@ select:focus-visible {
 .message.error {
   color: var(--error);
   border-color: var(--error);
-  background: rgba(255, 92, 122, 0.08);
+  background: var(--error-bg);
 }
 
 .message.empty { color: var(--text-muted); }
@@ -304,7 +362,7 @@ select:focus-visible {
 .fav-btn.active {
   color: var(--fav);
   border-color: var(--fav);
-  box-shadow: 0 0 14px rgba(255, 77, 141, 0.5);
+  box-shadow: 0 0 14px var(--fav-glow);
 }
 
 /* ===== Paginación ===== */
@@ -385,6 +443,12 @@ select:focus-visible {
   .pagination .btn { flex: 1 1 40%; }
 
   #pageInfo { order: -1; flex: 1 1 100%; }
+}
+
+/* ===== Transición suave al cambiar de tema ===== */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
 }
 
 /* Respeta la preferencia de menos movimiento */
