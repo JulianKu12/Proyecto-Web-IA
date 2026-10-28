@@ -288,10 +288,13 @@ select:focus-visible {
               border-color var(--transition), box-shadow var(--transition);
 }
 
-.fav-btn:hover:not(:disabled) {
-  color: var(--fav);
-  border-color: var(--fav);
-  transform: scale(1.1);
+/* Hover solo en dispositivos con puntero real (no táctiles) */
+@media (hover: hover) {
+  .fav-btn:hover:not(:disabled) {
+    color: var(--fav);
+    border-color: var(--fav);
+    transform: scale(1.1);
+  }
 }
 
 .fav-btn.active {
@@ -380,5 +383,7 @@ select:focus-visible {
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }
