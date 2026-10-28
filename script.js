@@ -113,8 +113,23 @@ function loadFavorites() {
   try {
     const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY));
     if (!Array.isArray(parsed)) return [];
-    // Conserva solo elementos válidos
-    return parsed.filter((item) => item && typeof item === 'object' && item.id != null);
+
+    const seen = new Set();
+    return parsed.reduce((list, item) => {
+      const id = Number(item && item.id);
+      // Descarta ids inválidos y duplicados
+      if (!Number.isInteger(id) || id < 1 || seen.has(id)) return list;
+      seen.add(id);
+      list.push({
+        id,
+        name: String(item.name || 'Sin nombre'),
+        image: String(item.image || ''),
+        status: String(item.status || 'unknown'),
+        species: String(item.species || 'unknown'),
+        gender: String(item.gender || 'unknown')
+      });
+      return list;
+    }, []);
   } catch (error) {
     console.warn('Favoritos dañados, se empieza con una lista vacía:', error);
     return [];
@@ -208,7 +223,7 @@ function createCharacterImage(character) {
     img.onerror = null;
     img.src = FALLBACK_IMAGE;
   };
-  img.src = character.image;
+  img.src = character.image || FALLBACK_IMAGE;
   return img;
 }
 
@@ -329,8 +344,8 @@ function syncHearts() {
 // Actualiza el texto y el estado de los botones de paginación
 function updatePagination() {
   els.pageInfo.textContent = `Página ${state.page} de ${state.totalPages}`;
-  els.prevPage.disabled = state.loading || state.page <= 1;
-  els.nextPage.disabled = state.loading || state.page >= state.totalPages;
+  els.prevPage.disabled = state.page <= 1;
+  els.nextPage.disabled = state.page >= state.totalPages;
 }
 
 /* ===== Comunicación con la API ===== */
@@ -402,6 +417,8 @@ function handleEmpty() {
 
 function handleError(error) {
   console.error('Error al cargar personajes:', error);
+  clearGrid();        // no dejar tarjetas de otra página
+  state.results = [];
   showMessage(
     'error',
     'No se pudo cargar la información. Revisa tu conexión e inténtalo de nuevo.',
@@ -454,8 +471,13 @@ function clearAllFilters() {
 function goToPage(page) {
   if (state.loading || page < 1 || page > state.totalPages) return;
   loadCharacters(page); // buildUrl conserva los filtros activos
-  // Lleva al usuario al inicio de los resultados
-  els.resultsTitle.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Lleva al usuario al inicio de los resultados (sin animación si lo prefiere)
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  els.resultsTitle.scrollIntoView({
+    behavior: reduceMotion ? 'auto' : 'smooth',
+    block: 'start'
+  });
 }
 
 /* ===== Eventos ===== */
@@ -474,7 +496,17 @@ function handleFavoritesClick(event) {
   const btn = event.target.closest('.fav-btn');
   if (!btn) return;
 
+  const index = state.favorites.findIndex((f) => f.id === Number(btn.dataset.id));
   removeFavorite(btn.dataset.id);
+
+  // Devuelve el foco al siguiente favorito (o al mensaje de vacío)
+  const buttons = els.favoritesGrid.querySelectorAll('.fav-btn');
+  if (buttons.length) {
+    buttons[Math.max(0, Math.min(index, buttons.length - 1))].focus();
+  } else {
+    els.favEmpty.setAttribute('tabindex', '-1');
+    els.favEmpty.focus();
+  }
 }
 
 function bindEvents() {
@@ -497,6 +529,7 @@ function init() {
   state.favorites = loadFavorites();
   renderFavorites();
   bindEvents();
+  readFiltersFromControls();
   loadCharacters(1);
 }
 
