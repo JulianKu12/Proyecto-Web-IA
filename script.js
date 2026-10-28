@@ -4,6 +4,7 @@
 const API_URL = 'https://rickandmortyapi.com/api/character';
 const SEARCH_DELAY = 400; // ms de espera (debounce) al escribir en el buscador
 const FAVORITES_KEY = 'rm_favorites'; // clave de Local Storage
+const THEME_KEY = 'rm_theme';         // clave de Local Storage para el tema
 
 // Imagen de respaldo (SVG embebido) por si falla la imagen original
 const FALLBACK_IMAGE =
@@ -70,7 +71,9 @@ const els = {
   clearFilters: document.getElementById('clearFilters'),
   favCount: document.getElementById('favCount'),
   favoritesGrid: document.getElementById('favoritesGrid'),
-  favEmpty: document.getElementById('favEmpty')
+  favEmpty: document.getElementById('favEmpty'),
+  themeToggle: document.getElementById('themeToggle'),
+  themeIcon: document.querySelector('#themeToggle .theme-icon')
 };
 
 /* ===== Utilidades ===== */
@@ -480,6 +483,60 @@ function goToPage(page) {
   });
 }
 
+/* ===== Tema claro / oscuro ===== */
+
+// Lee el tema guardado; devuelve null si no hay o si el valor no es válido
+function getSavedTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved === 'light' || saved === 'dark' ? saved : null;
+  } catch (error) {
+    return null; // Local Storage bloqueado
+  }
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch (error) {
+    console.warn('No se pudo guardar el tema:', error);
+  }
+}
+
+// Sin preferencia guardada, se usa la del sistema operativo
+function getSystemTheme() {
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function getCurrentTheme() {
+  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+}
+
+// Aplica el tema al <html> y actualiza icono y aria-label del botón
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+
+  // El botón muestra a qué modo se cambiará al pulsarlo
+  const goingToLight = theme === 'dark';
+  const label = goingToLight ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+  els.themeIcon.textContent = goingToLight ? '\u2600\uFE0E' : '\u263E\uFE0E'; // ☀ / ☾
+  els.themeToggle.setAttribute('aria-label', label);
+  els.themeToggle.title = label;
+}
+
+// Alterna el tema (con transición suave si el navegador lo permite) y lo guarda
+function toggleTheme() {
+  const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (document.startViewTransition && !reduceMotion) {
+    document.startViewTransition(() => applyTheme(next));
+  } else {
+    applyTheme(next);
+  }
+  saveTheme(next);
+}
+
 /* ===== Eventos ===== */
 
 // Delegación: clic en un corazón dentro de los resultados
@@ -518,6 +575,7 @@ function bindEvents() {
   els.speciesFilter.addEventListener('change', applyFilters);
   els.genderFilter.addEventListener('change', applyFilters);
   els.clearFilters.addEventListener('click', clearAllFilters);
+  els.themeToggle.addEventListener('click', toggleTheme);
 
   // Un solo listener por contenedor (delegación de eventos)
   els.grid.addEventListener('click', handleGridClick);
@@ -526,6 +584,7 @@ function bindEvents() {
 
 /* ===== Inicio ===== */
 function init() {
+  applyTheme(getSavedTheme() || getSystemTheme()); // tema guardado o del sistema
   state.favorites = loadFavorites();
   renderFavorites();
   bindEvents();
